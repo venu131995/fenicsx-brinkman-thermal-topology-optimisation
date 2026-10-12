@@ -9,8 +9,9 @@ from .mma import MMA
 
 
 def optimise(prob, vol_frac: float, iters: int = 150, betas=(1, 2, 4, 8, 16), every: int = 30,
-             x0: float | None = None, snapshot_every: int = 0, log=None, q_schedule=None):
-    """q_schedule: optional list of (start_iteration, q) for Brinkman-interpolation continuation."""
+             x0: float | None = None, snapshot_every: int = 0, log=None, q_schedule=None, amax_schedule=None):
+    """q_schedule / amax_schedule: optional lists of (start_iteration, value) for continuation of the Brinkman
+    interpolation parameter q and of the solid inverse permeability a_max."""
     n = prob.n_local
     x = np.full(n, vol_frac if x0 is None else x0)
     prob.set_design(x)
@@ -20,6 +21,8 @@ def optimise(prob, vol_frac: float, iters: int = 150, betas=(1, 2, 4, 8, 16), ev
         prob.beta.value = betas[min(it // every, len(betas) - 1)]
         if q_schedule:
             prob.qc.value = [q for start, q in q_schedule if it >= start][-1]
+        if amax_schedule:
+            prob.amax.value = [a for start, a in amax_schedule if it >= start][-1]
         J, dJ = prob.evaluate()
         J0 = J0 or J
         vol = prob.volume()

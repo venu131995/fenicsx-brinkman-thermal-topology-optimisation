@@ -36,16 +36,46 @@ viscous wall friction. The Stokes–Brinkman model here does, which changes the 
 
 ## Results
 
-### 1. Benchmark: Borrvall–Petersson double pipe (minimum dissipated power, ⅓ fluid)
+### 1. Solver testing on benchmarks
 
-| Domain length | Optimised topology | Dissipated power | Two straight pipes |
+![solver testing on benchmarks](figures/fig0_benchmark.png)
+
+**Flow optimisation: Borrvall–Petersson (2003) double pipe.** Two parabolic inflows and outflows, fixed flow rate,
+water ≤ ⅓ of the box, minimise pumping (dissipated) power. Known answer: a short box keeps two pipes, a long box
+merges them into one. Run on 4 MPI processes (`scripts/run_double_pipe.py`, one MPI job per length, then
+`scripts/combine_double_pipe.py`; `results/double_pipe.json`):
+
+| Domain length | Optimised topology | Pumping power | Two straight pipes | Exact (straight) | Run time |
+|---|---|---|---|---|---|
+| 1.0 | two separate pipes | 33.24 | 32.55 | 32 | 10.5 min |
+| **1.5** | **pipes merge into one** | **33.27** | 48.83 (**−32%**) | 48 | 23.7 min |
+
+**Accuracy against theory: straight pipes vs. the exact Poiseuille value** (`scripts/straight_pipe_accuracy.py`;
+J = 32 L for two pipes of width 1/6 with impermeable walls). The Brinkman "solid" lets flow penetrate about
+1/√α_max, so the error is set by the solid strength, not the mesh:
+
+| α_max | 60 cells | 120 cells | 240 cells |
 |---|---|---|---|
-| 1.0 | two separate pipes | 21.98 | 24.65 |
-| **1.5** | **pipes merge into one** | **23.95** | 36.73 (**−35%**) |
+| 2.5 × 10⁴ (textbook value) | −23.0% | −22.9% | −22.8% |
+| 10⁶ | −3.7% | −4.6% | −5.0% |
+| **10⁸ (used for the benchmark)** | **+1.7%** | **+1.1%** | **+0.7%** |
 
-This reproduces the classic Borrvall & Petersson (2003) result: when the domain is long enough, two pipes cost
-more viscous dissipation than one merged channel (`fig1_double_pipe.png`). The first run without q-continuation
-got stuck in the two-pipe local optimum. The soft-start continuation used in the reference literature fixes it.
+The optimiser therefore runs with the textbook α_max (the soft start needed to find the merged pipe) and raises
+it to 10⁶ and then 10⁸ once the design is crisp; both designs are reported at the same sharpness (β = 64).
+
+**Heat with flow: heated parallel plates** (`scripts/verify_nusselt.py`, `results/nusselt.json`). The production
+`ThermalPlate` solver on an all-fluid design, both walls heated with a uniform flux. The flow must be plane
+Poiseuille and the developed Nusselt number (D_h = 2H) must equal 140/17 = 8.235 (Shah & London):
+
+| Cells across | Nusselt | Error | Mean speed error | Mass balance | Energy balance (global) | Heat residual (local, nodal) |
+|---|---|---|---|---|---|---|
+| 10 | 8.285 | 0.61% | 2 × 10⁻¹² % | 5 × 10⁻¹⁴ | 2 × 10⁻¹⁴ | 3 × 10⁻¹³ |
+| 20 | 8.247 | 0.14% | 4 × 10⁻¹² % | 9 × 10⁻¹⁴ | 4 × 10⁻¹⁴ | 1 × 10⁻¹² |
+| 40 | **8.238** | **0.03%** | 9 × 10⁻¹² % | 2 × 10⁻¹³ | 7 × 10⁻¹⁴ | 5 × 10⁻¹² |
+
+No standard thermal-fluid *optimisation* benchmark with a known answer exists, so the coupled optimiser is
+verified in pieces: the flow-optimisation benchmark above, this coupled heat-flow solve, the manufactured
+solutions and the Taylor gradient tests below.
 
 ### 2. Thermal cold plate (pressure-driven, 8× hotspot, 35% coolant)
 
@@ -113,6 +143,11 @@ the change needed before large 3-D runs on a cluster.
    the residual check different rules. A fixed quadrature degree makes discrete residuals reach round-off.
 3. **Ill-conditioned convection solves.** Iterative refinement on the MUMPS factorisation restores lost digits.
 4. **Local optima.** Soft-start Brinkman continuation was needed to reproduce the merged double pipe.
+5. **Textbook α_max is too leaky for accurate numbers.** With α_max = 2.5 × 10⁴ the straight-pipe dissipation is
+   23% below the exact value at every mesh. Raising α_max to 10⁸ after the design is crisp brings it within 2%.
+   Raising it while the design is still grey froze the layout, so the ramp starts only at full sharpness.
+6. **Hidden state between runs.** Running both double-pipe lengths in one MPI job sent the second one into the
+   two-pipe local optimum (the same run alone merges). Each length now runs in its own job.
 
 ## Limitations
 
@@ -120,6 +155,8 @@ the change needed before large 3-D runs on a cluster.
   number.
 - 2-D plan-view, dimensionless and steady. The 3-D conjugate heat transfer of a real cold plate is the next step,
   and the same code extends to 3-D meshes.
+- The thermal study uses α_max = 10⁶, where the straight-pipe check shows dissipation 4–5% below exact. Designs
+  are compared within the same model, but absolute values carry that error; 10⁸ is the accurate setting.
 - MUMPS direct solves limit scaling. Large 3-D problems need iterative block preconditioners (PETSc fieldsplit).
 
 ## Run
@@ -128,7 +165,12 @@ the change needed before large 3-D runs on a cluster.
 micromamba create -n fx -c conda-forge python=3.12 "fenics-dolfinx=0.11" "mpi=*=openmpi" matplotlib scipy pytest imageio-ffmpeg
 python -m pytest -q tests                          # 7 tests (also: mpirun -n 4 python -m pytest tests)
 python scripts/verify_mms.py                       # manufactured-solution rates, ~1 min
-mpirun -n 4 python scripts/run_double_pipe.py      # benchmark, ~18 min
+mpirun -n 4 python scripts/run_double_pipe.py 1.0  # benchmark, short box, ~11 min
+mpirun -n 4 python scripts/run_double_pipe.py 1.5  # long box, ~24 min (separate job)
+python scripts/combine_double_pipe.py              # merge both into double_pipe.json and fig1
+mpirun -n 4 python scripts/straight_pipe_accuracy.py  # straight pipes vs exact, ~2 min
+python scripts/verify_nusselt.py                   # heated plates, Nusselt vs 8.235, ~20 s
+python scripts/plot_benchmark.py                   # fig0_benchmark.png
 mpirun -n 4 python scripts/run_thermal.py          # thermal design + fair baselines, ~25 min
 mpirun -n N python scripts/scaling.py 200          # strong scaling (see script header for fair settings)
 python scripts/make_animation.py                   # movie

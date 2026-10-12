@@ -108,6 +108,7 @@ class Problem:
         self.xf = fem.Function(self.V1, name="filtered")
         self.beta = fem.Constant(self.msh, PETSc.ScalarType(s.beta))
         self.qc = fem.Constant(self.msh, PETSc.ScalarType(s.q))      # Brinkman interpolation parameter (continued)
+        self.amax = fem.Constant(self.msh, PETSc.ScalarType(s.a_max))  # solid inverse permeability (continued)
         self.w = fem.Function(self.W, name="flow")
         self.area = comm.allreduce(fem.assemble_scalar(fem.form(fem.Constant(self.msh, 1.0) * ufl.dx(domain=self.msh))), op=MPI.SUM)
         self.n_local = self.V0.dofmap.index_map.size_local
@@ -119,7 +120,7 @@ class Problem:
 
     def alpha(self):
         r = self.rho()
-        return self.s.a_max * self.qc * (1 - r) / (self.qc + r)
+        return self.amax * self.qc * (1 - r) / (self.qc + r)
 
     def filter_forms(self, rhs):
         u, v = ufl.TrialFunction(self.V1), ufl.TestFunction(self.V1)

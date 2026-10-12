@@ -19,12 +19,16 @@ comm = MPI.COMM_WORLD
 out, plots = {"mpi_ranks": comm.size}, {}
 CASES = [float(a) for a in sys.argv[1:]] or [1.0, 1.5]
 for L in CASES:
-    s = Settings(length=L, nx=int(60 * L), ny=60, r_filter=0.015)
+    s = Settings(length=L, nx=int(60 * L), ny=60, r_filter=0.015, a_max=2.5e4)
     prob = DoublePipe(s, comm)
     t0 = time.time()
     # soft interpolation first (q = 0.01) so channels can explore merging, then hard (q = 0.1) + sharpening
-    x, J, hist, _ = optimise(prob, 1 / 3, iters=180, betas=(1, 1, 1, 2, 4, 8, 16), every=25,
-                             q_schedule=[(0, 0.01), (75, 0.1)], log=lambda m: print(f"[L={L}] {m}", flush=True))
+    x, J, hist, _ = optimise(prob, 1 / 3, iters=230, betas=(1, 1, 1, 2, 4, 8, 16), every=25,
+                             q_schedule=[(0, 0.01), (75, 0.1)],
+                             # textbook a_max = 2.5e4 leaks ~23 % (straight-pipe check), so tighten the solid once the design is crisp
+                             amax_schedule=[(0, 2.5e4), (175, 1e6), (200, 1e8)], log=lambda m: print(f"[L={L}] {m}", flush=True))
+    prob.beta.value = 64.0                       # report optimised and straight designs at the same sharpness
+    J, _ = prob.evaluate(gradient=False)
     rho = projected_dg0(prob)
     # reference: two straight pipes joining each inlet to its outlet, same fluid fraction
     mid = cell_midpoints(prob)
@@ -39,6 +43,10 @@ for L in CASES:
                      "improvement_pct": 100 * (1 - J / J_straight), "runtime_s": time.time() - t0,
                      "history": [h["J"] for h in hist]}
     plots[L] = gather_cells(prob, rho)
+    if comm.rank == 0:
+        tr, vv = plots[L]
+        np.savez_compressed(ROOT / "results" / f"double_pipe_L{L}.npz", tris=tr, vals=vv)
+        (ROOT / "results" / f"double_pipe_L{L}.json").write_text(json.dumps(out[f"L={L}"], indent=1))
 
 if comm.rank == 0 and len(CASES) == 2:
     (ROOT / "results").mkdir(exist_ok=True)

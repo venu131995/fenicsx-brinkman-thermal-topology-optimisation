@@ -1,0 +1,48 @@
+{
+ "mpi_ranks": 1,
+ "Pe_Dh": 40.0,
+ "rows": [
+  {
+   "ny": 10,
+   "nx": 120,
+   "mean_speed": 0.9999999999999796,
+   "mean_speed_exact": 1.0,
+   "flow_error_pct": -2.042810365310288e-12,
+   "mass_imbalance_rel": 4.773959005888271e-14,
+   "Nu": 8.285255598165948,
+   "Nu_exact": 8.235294117647058,
+   "Nu_error_pct": 0.6066751205865195,
+   "energy_closure_rel": 2.161234154603638e-14,
+   "heat_nodal_residual_max_rel": 2.4669600130061697e-13,
+   "time_s": 1.7096343040466309
+  },
+  {
+   "ny": 20,
+   "nx": 240,
+   "mean_speed": 0.9999999999999634,
+   "mean_speed_exact": 1.0,
+   "flow_error_pct": -3.6637359812630166e-12,
+   "mass_imbalance_rel": 8.548717289614018e-14,
+   "Nu": 8.246972023458303,
+   "Nu_exact": 8.235294117647058,
+   "Nu_error_pct": 0.1418031419937016,
+   "energy_closure_rel": 3.981999914988895e-14,
+   "heat_nodal_residual_max_rel": 1.0762593073698756e-12,
+   "time_s": 2.7807629108428955
+  },
+  {
+   "ny": 40,
+   "nx": 480,
+   "mean_speed": 1.0000000000000941,
+   "mean_speed_exact": 1.0,
+   "flow_error_pct": 9.414691248821327e-12,
+   "mass_imbalance_rel": 1.7386092565628316e-13,
+   "Nu": 8.238145111643494,
+   "Nu_exact": 8.235294117647058,
+   "Nu_error_pct": 0.03461921281386893,
+   "energy_closure_rel": 6.912988699999308e-14,
+   "heat_nodal_residual_max_rel": 4.790906025486004e-12,
+   "time_s": 11.067661046981812
+  }
+ ]
+}
