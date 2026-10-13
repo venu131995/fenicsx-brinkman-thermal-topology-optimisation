@@ -108,16 +108,12 @@ if comm.rank == 0 and not QUICK:
     import pickle
     (ROOT / "results" / "thermal_frames.pkl").write_bytes(pickle.dumps(
         {"frames": frames, "best": best, "opt": opt_plot, "straight": best_plot, "hist": hist}))
+    np.savez_compressed(ROOT / "results" / "thermal_fields.npz", s_tris=best_plot[0][0], s_rho=best_plot[0][1],
+                        s_T=best_plot[1][1], o_tris=opt_plot[0][0], o_rho=opt_plot[0][1], o_T=opt_plot[1][1],
+                        s_Tmax=best["T_max"], o_Tmax=diag["T_max"], n_ch=best["channels"])
+    import plot_thermal
+    plot_thermal.main()
     import matplotlib; matplotlib.use("Agg"); import matplotlib.pyplot as plt
-    vmax = max(best["T_max"], diag["T_max"])
-    fig, axs = plt.subplots(2, 2, figsize=(10, 5.6))
-    draw(axs[0, 0], *best_plot[0], title=f"Best straight channels (N = {best['channels']})")
-    draw(axs[0, 1], *opt_plot[0], title="Topology-optimised (FEniCSx, Brinkman)")
-    draw(axs[1, 0], *best_plot[1], cmap="inferno", vmax=vmax, title=f"T_max = {best['T_max']:.4f}")
-    pc = draw(axs[1, 1], *opt_plot[1], cmap="inferno", vmax=vmax, title=f"T_max = {diag['T_max']:.4f}")
-    fig.colorbar(pc, ax=axs[1, :], shrink=0.8, label="temperature")
-    fig.suptitle("Pressure-driven cold plate, 8x hotspot, 35% coolant (coolant enters left)", fontsize=10)
-    fig.savefig(ROOT / "figures" / "fig2_thermal_design.png", dpi=140, bbox_inches="tight"); plt.close(fig)
 
     fig, ax = plt.subplots(1, 2, figsize=(10, 3.4))
     ns = [b["channels"] for b in base]
