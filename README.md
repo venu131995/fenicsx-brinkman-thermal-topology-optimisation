@@ -178,6 +178,17 @@ optimisation step (flow, heat, two adjoints, filter and filter adjoint) on the s
 - The iterative flow solver's iteration count grows with mesh refinement (see MPI scaling). Large 3-D runs need a
   mesh-robust Brinkman Schur preconditioner.
 
+**Tests (`tests/`, 9 passing, in serial and on 4 MPI processes):**
+- flow gradient (double pipe) passes a Taylor test (second-order rate);
+- coupled heat-flow gradient passes a Taylor test;
+- the Brinkman flow problem is self-adjoint: adding fluid anywhere can only lower dissipated power;
+- the heat balance closes and a pressure drop drives flow in the right direction;
+- parallel MMA reproduces the analytic KKT solution of a constrained quadratic programme;
+- the solid is effectively impermeable at the production settings (guards against the leaky-solid pitfall);
+- the conservation report (mass, momentum, mechanical and thermal energy) closes on a random design;
+- iterative solvers (AMG, Schur fieldsplit) reproduce the direct-solver objective and gradient, for both the
+  flow and the thermal problem (2 tests).
+
 ## Run
 
 ```bash
