@@ -1,30 +1,940 @@
 {
- "1": {
-  "ranks": 1,
-  "mesh": [
-   200,
-   100
-  ],
-  "cells": 80000,
-  "seconds_per_step": 9.4
- },
- "2": {
-  "ranks": 2,
-  "mesh": [
-   200,
-   100
-  ],
-  "cells": 80000,
-  "seconds_per_step": 7.5
- },
- "4": {
-  "ranks": 4,
-  "mesh": [
-   200,
-   100
-  ],
-  "cells": 80000,
-  "seconds_per_step": 7.1
- },
- "note": "one thread per process, MUMPS parallel analysis (ICNTL 28=2, 29=2); MacBook Air M-series, 4 performance + 4 efficiency cores"
+ "runs": [
+  {
+   "solver": "iterative",
+   "ranks": 1,
+   "mesh": [
+    200,
+    100
+   ],
+   "cells": 80000,
+   "dofs_flow_plus_heat": 401804,
+   "seconds_per_step": 25.28906480036676,
+   "per_solve": {
+    "filt_": {
+     "seconds": 0.11378343775868416,
+     "its": 6
+    },
+    "flow_": {
+     "seconds": 11.796532101929188,
+     "its": 76
+    },
+    "heat_": {
+     "seconds": 0.5255493279546499,
+     "its": 18
+    },
+    "adjT_": {
+     "seconds": 0.5628925058990717,
+     "its": 14
+    },
+    "adjF_": {
+     "seconds": 11.55510445870459,
+     "its": 73
+    },
+    "filtadj_": {
+     "seconds": 0.6697676908224821,
+     "its": 6
+    }
+   },
+   "J": 0.11162547143294312,
+   "grad_norm": 0.004770365501774192
+  },
+  {
+   "solver": "iterative",
+   "ranks": 2,
+   "mesh": [
+    200,
+    100
+   ],
+   "cells": 80000,
+   "dofs_flow_plus_heat": 401804,
+   "seconds_per_step": 13.554935339838266,
+   "per_solve": {
+    "filt_": {
+     "seconds": 0.07650638744235039,
+     "its": 6
+    },
+    "flow_": {
+     "seconds": 6.374638782814145,
+     "its": 76
+    },
+    "heat_": {
+     "seconds": 0.29528024792671204,
+     "its": 14
+    },
+    "adjT_": {
+     "seconds": 0.21765413880348206,
+     "its": 15
+    },
+    "adjF_": {
+     "seconds": 6.324769653379917,
+     "its": 74
+    },
+    "filtadj_": {
+     "seconds": 0.21270662359893322,
+     "its": 6
+    }
+   },
+   "J": 0.11162547133774865,
+   "grad_norm": 0.004770365493097028
+  },
+  {
+   "solver": "iterative",
+   "ranks": 4,
+   "mesh": [
+    200,
+    100
+   ],
+   "cells": 80000,
+   "dofs_flow_plus_heat": 401804,
+   "seconds_per_step": 7.501655589789152,
+   "per_solve": {
+    "filt_": {
+     "seconds": 0.05630786344408989,
+     "its": 7
+    },
+    "flow_": {
+     "seconds": 3.4597894493490458,
+     "its": 76
+    },
+    "heat_": {
+     "seconds": 0.1781916841864586,
+     "its": 19
+    },
+    "adjT_": {
+     "seconds": 0.12667775340378284,
+     "its": 16
+    },
+    "adjF_": {
+     "seconds": 3.4986535888165236,
+     "its": 75
+    },
+    "filtadj_": {
+     "seconds": 0.13137775287032127,
+     "its": 7
+    }
+   },
+   "J": 0.11162547141744873,
+   "grad_norm": 0.004770365499307098
+  },
+  {
+   "solver": "iterative",
+   "ranks": 8,
+   "mesh": [
+    200,
+    100
+   ],
+   "cells": 80000,
+   "dofs_flow_plus_heat": 401804,
+   "seconds_per_step": 5.169455099850893,
+   "per_solve": {
+    "filt_": {
+     "seconds": 0.03540566749870777,
+     "its": 7
+    },
+    "flow_": {
+     "seconds": 2.192490190267563,
+     "its": 76
+    },
+    "heat_": {
+     "seconds": 0.10377306863665581,
+     "its": 16
+    },
+    "adjT_": {
+     "seconds": 0.28079571574926376,
+     "its": 16
+    },
+    "adjF_": {
+     "seconds": 2.134936073794961,
+     "its": 74
+    },
+    "filtadj_": {
+     "seconds": 0.3698493503034115,
+     "its": 7
+    }
+   },
+   "J": 0.11162547133413557,
+   "grad_norm": 0.004770365492120805
+  },
+  {
+   "solver": "lu",
+   "ranks": 1,
+   "mesh": [
+    200,
+    100
+   ],
+   "cells": 80000,
+   "dofs_flow_plus_heat": 401804,
+   "seconds_per_step": 13.550857799127698,
+   "per_solve": {
+    "filt_": {
+     "seconds": 0.29525621235370636,
+     "its": 1
+    },
+    "flow_": {
+     "seconds": 5.639856394380331,
+     "its": 1
+    },
+    "heat_": {
+     "seconds": 0.6634367909282446,
+     "its": 1
+    },
+    "adjT_": {
+     "seconds": 0.5027226563543081,
+     "its": 1
+    },
+    "adjF_": {
+     "seconds": 5.8259477857500315,
+     "its": 1
+    },
+    "filtadj_": {
+     "seconds": 0.5611074510961771,
+     "its": 1
+    }
+   },
+   "J": 0.11162547135352517,
+   "grad_norm": 0.004770365492042816
+  },
+  {
+   "solver": "lu",
+   "ranks": 2,
+   "mesh": [
+    200,
+    100
+   ],
+   "cells": 80000,
+   "dofs_flow_plus_heat": 401804,
+   "seconds_per_step": 11.001898156479001,
+   "per_solve": {
+    "filt_": {
+     "seconds": 0.28519943729043007,
+     "its": 1
+    },
+    "flow_": {
+     "seconds": 4.3775307685136795,
+     "its": 1
+    },
+    "heat_": {
+     "seconds": 0.48520426265895367,
+     "its": 1
+    },
+    "adjT_": {
+     "seconds": 0.6027429886162281,
+     "its": 1
+    },
+    "adjF_": {
+     "seconds": 4.4751163851469755,
+     "its": 1
+    },
+    "filtadj_": {
+     "seconds": 0.7212222348898649,
+     "its": 1
+    }
+   },
+   "J": 0.11162547135350236,
+   "grad_norm": 0.004770365492041121
+  },
+  {
+   "solver": "lu",
+   "ranks": 4,
+   "mesh": [
+    200,
+    100
+   ],
+   "cells": 80000,
+   "dofs_flow_plus_heat": 401804,
+   "seconds_per_step": 8.046758126467466,
+   "per_solve": {
+    "filt_": {
+     "seconds": 0.2550267968326807,
+     "its": 1
+    },
+    "flow_": {
+     "seconds": 3.348996516317129,
+     "its": 1
+    },
+    "heat_": {
+     "seconds": 0.36020392179489136,
+     "its": 1
+    },
+    "adjT_": {
+     "seconds": 0.3159919921308756,
+     "its": 1
+    },
+    "adjF_": {
+     "seconds": 3.390888512134552,
+     "its": 1
+    },
+    "filtadj_": {
+     "seconds": 0.32426896691322327,
+     "its": 1
+    }
+   },
+   "J": 0.1116254713535174,
+   "grad_norm": 0.004770365492041896
+  },
+  {
+   "solver": "lu",
+   "ranks": 8,
+   "mesh": [
+    200,
+    100
+   ],
+   "cells": 80000,
+   "dofs_flow_plus_heat": 401804,
+   "seconds_per_step": 7.328562803566456,
+   "per_solve": {
+    "filt_": {
+     "seconds": 0.24861154705286026,
+     "its": 1
+    },
+    "flow_": {
+     "seconds": 2.8176140282303095,
+     "its": 1
+    },
+    "heat_": {
+     "seconds": 0.3089292626827955,
+     "its": 1
+    },
+    "adjT_": {
+     "seconds": 0.48345594480633736,
+     "its": 1
+    },
+    "adjF_": {
+     "seconds": 2.8311723861843348,
+     "its": 1
+    },
+    "filtadj_": {
+     "seconds": 0.5834609940648079,
+     "its": 1
+    }
+   },
+   "J": 0.11162547135351795,
+   "grad_norm": 0.0047703654920418824
+  },
+  {
+   "solver": "iterative",
+   "ranks": 1,
+   "mesh": [
+    400,
+    200
+   ],
+   "cells": 320000,
+   "dofs_flow_plus_heat": 1603604,
+   "seconds_per_step": 264.4702329915017,
+   "per_solve": {
+    "filt_": {
+     "seconds": 0.5131139792501926,
+     "its": 7
+    },
+    "flow_": {
+     "seconds": 131.5489153340459,
+     "its": 138
+    },
+    "heat_": {
+     "seconds": 2.259906394407153,
+     "its": 21
+    },
+    "adjT_": {
+     "seconds": 1.8238595128059387,
+     "its": 19
+    },
+    "adjF_": {
+     "seconds": 126.2104087844491,
+     "its": 132
+    },
+    "filtadj_": {
+     "seconds": 1.9882165882736444,
+     "its": 7
+    }
+   },
+   "J": 0.11048745451163741,
+   "grad_norm": 0.0022278159396864664
+  },
+  {
+   "solver": "iterative",
+   "ranks": 2,
+   "mesh": [
+    400,
+    200
+   ],
+   "cells": 320000,
+   "dofs_flow_plus_heat": 1603604,
+   "seconds_per_step": 137.18124327994883,
+   "per_solve": {
+    "filt_": {
+     "seconds": 0.30902955681085587,
+     "its": 7
+    },
+    "flow_": {
+     "seconds": 70.70415944047272,
+     "its": 138
+    },
+    "heat_": {
+     "seconds": 1.2200556006282568,
+     "its": 19
+    },
+    "adjT_": {
+     "seconds": 0.8727559577673674,
+     "its": 17
+    },
+    "adjF_": {
+     "seconds": 63.06290873885155,
+     "its": 123
+    },
+    "filtadj_": {
+     "seconds": 0.9227357674390078,
+     "its": 7
+    }
+   },
+   "J": 0.11048745449508345,
+   "grad_norm": 0.0022278159378831893
+  },
+  {
+   "solver": "iterative",
+   "ranks": 4,
+   "mesh": [
+    400,
+    200
+   ],
+   "cells": 320000,
+   "dofs_flow_plus_heat": 1603604,
+   "seconds_per_step": 73.8759017251432,
+   "per_solve": {
+    "filt_": {
+     "seconds": 0.1878472175449133,
+     "its": 7
+    },
+    "flow_": {
+     "seconds": 38.07066393457353,
+     "its": 137
+    },
+    "heat_": {
+     "seconds": 0.6490075420588255,
+     "its": 17
+    },
+    "adjT_": {
+     "seconds": 0.4802199564874172,
+     "its": 19
+    },
+    "adjF_": {
+     "seconds": 33.91176833584905,
+     "its": 123
+    },
+    "filtadj_": {
+     "seconds": 0.5047289002686739,
+     "its": 7
+    }
+   },
+   "J": 0.11048745444906095,
+   "grad_norm": 0.0022278159359737444
+  },
+  {
+   "solver": "iterative",
+   "ranks": 8,
+   "mesh": [
+    400,
+    200
+   ],
+   "cells": 320000,
+   "dofs_flow_plus_heat": 1603604,
+   "seconds_per_step": 49.0409900136292,
+   "per_solve": {
+    "filt_": {
+     "seconds": 0.11110751703381538,
+     "its": 7
+    },
+    "flow_": {
+     "seconds": 25.131969241425395,
+     "its": 138
+    },
+    "heat_": {
+     "seconds": 0.371353168040514,
+     "its": 18
+    },
+    "adjT_": {
+     "seconds": 0.4795333966612816,
+     "its": 17
+    },
+    "adjF_": {
+     "seconds": 22.309482710435987,
+     "its": 123
+    },
+    "filtadj_": {
+     "seconds": 0.5767480581998825,
+     "its": 7
+    }
+   },
+   "J": 0.11048745449493165,
+   "grad_norm": 0.0022278159378707435
+  },
+  {
+   "solver": "lu",
+   "ranks": 1,
+   "mesh": [
+    400,
+    200
+   ],
+   "cells": 320000,
+   "dofs_flow_plus_heat": 1603604,
+   "seconds_per_step": 63.6067351680249,
+   "per_solve": {
+    "filt_": {
+     "seconds": 1.4985405020415783,
+     "its": 1
+    },
+    "flow_": {
+     "seconds": 26.693494979292154,
+     "its": 1
+    },
+    "heat_": {
+     "seconds": 2.9877237640321255,
+     "its": 1
+    },
+    "adjT_": {
+     "seconds": 2.2521684747189283,
+     "its": 1
+    },
+    "adjF_": {
+     "seconds": 27.418701687827706,
+     "its": 1
+    },
+    "filtadj_": {
+     "seconds": 2.6328789219260216,
+     "its": 1
+    }
+   },
+   "J": 0.11048745449208289,
+   "grad_norm": 0.0022278159384085446
+  },
+  {
+   "solver": "lu",
+   "ranks": 2,
+   "mesh": [
+    400,
+    200
+   ],
+   "cells": 320000,
+   "dofs_flow_plus_heat": 1603604,
+   "seconds_per_step": 48.89599950425327,
+   "per_solve": {
+    "filt_": {
+     "seconds": 1.3766035065054893,
+     "its": 1
+    },
+    "flow_": {
+     "seconds": 20.319479882717133,
+     "its": 1
+    },
+    "heat_": {
+     "seconds": 2.095003640279174,
+     "its": 1
+    },
+    "adjT_": {
+     "seconds": 1.9610028378665447,
+     "its": 1
+    },
+    "adjF_": {
+     "seconds": 20.763626223430037,
+     "its": 1
+    },
+    "filtadj_": {
+     "seconds": 2.287311512976885,
+     "its": 1
+    }
+   },
+   "J": 0.11048745449208715,
+   "grad_norm": 0.002227815938407034
+  },
+  {
+   "solver": "lu",
+   "ranks": 4,
+   "mesh": [
+    400,
+    200
+   ],
+   "cells": 320000,
+   "dofs_flow_plus_heat": 1603604,
+   "seconds_per_step": 38.001160111278296,
+   "per_solve": {
+    "filt_": {
+     "seconds": 1.1740207113325596,
+     "its": 1
+    },
+    "flow_": {
+     "seconds": 15.81549059227109,
+     "its": 1
+    },
+    "heat_": {
+     "seconds": 1.5398679058998823,
+     "its": 1
+    },
+    "adjT_": {
+     "seconds": 1.5949151776731014,
+     "its": 1
+    },
+    "adjF_": {
+     "seconds": 16.031987354159355,
+     "its": 1
+    },
+    "filtadj_": {
+     "seconds": 1.7707622274756432,
+     "its": 1
+    }
+   },
+   "J": 0.11048745449207552,
+   "grad_norm": 0.00222781593840678
+  },
+  {
+   "solver": "lu",
+   "ranks": 8,
+   "mesh": [
+    400,
+    200
+   ],
+   "cells": 320000,
+   "dofs_flow_plus_heat": 1603604,
+   "seconds_per_step": 32.18770294636488,
+   "per_solve": {
+    "filt_": {
+     "seconds": 1.1465373262763023,
+     "its": 1
+    },
+    "flow_": {
+     "seconds": 13.267114816233516,
+     "its": 1
+    },
+    "heat_": {
+     "seconds": 1.3315387554466724,
+     "its": 1
+    },
+    "adjT_": {
+     "seconds": 1.4400607887655497,
+     "its": 1
+    },
+    "adjF_": {
+     "seconds": 13.33672103099525,
+     "its": 1
+    },
+    "filtadj_": {
+     "seconds": 1.6027085818350315,
+     "its": 1
+    }
+   },
+   "J": 0.11048745449205297,
+   "grad_norm": 0.002227815938406326
+  },
+  {
+   "solver": "iterative",
+   "ranks": 16,
+   "mesh": [
+    200,
+    100
+   ],
+   "cells": 80000,
+   "dofs_flow_plus_heat": 401804,
+   "seconds_per_step": 3.939845921471715,
+   "per_solve": {
+    "filt_": {
+     "seconds": 0.028665384277701378,
+     "its": 7
+    },
+    "flow_": {
+     "seconds": 1.5890334323048592,
+     "its": 77
+    },
+    "heat_": {
+     "seconds": 0.0720767006278038,
+     "its": 15
+    },
+    "adjT_": {
+     "seconds": 0.2691801283508539,
+     "its": 16
+    },
+    "adjF_": {
+     "seconds": 1.57972570694983,
+     "its": 75
+    },
+    "filtadj_": {
+     "seconds": 0.35120670311152935,
+     "its": 7
+    }
+   },
+   "J": 0.11162547137878366,
+   "grad_norm": 0.0047703654946670985
+  },
+  {
+   "solver": "iterative",
+   "ranks": 28,
+   "mesh": [
+    200,
+    100
+   ],
+   "cells": 80000,
+   "dofs_flow_plus_heat": 401804,
+   "seconds_per_step": 2.5340050235390663,
+   "per_solve": {
+    "filt_": {
+     "seconds": 0.023723063990473747,
+     "its": 7
+    },
+    "flow_": {
+     "seconds": 0.90239542350173,
+     "its": 78
+    },
+    "heat_": {
+     "seconds": 0.059267569333314896,
+     "its": 15
+    },
+    "adjT_": {
+     "seconds": 0.2562306169420481,
+     "its": 15
+    },
+    "adjF_": {
+     "seconds": 0.9029552210122347,
+     "its": 76
+    },
+    "filtadj_": {
+     "seconds": 0.34049967862665653,
+     "its": 7
+    }
+   },
+   "J": 0.11162547140804313,
+   "grad_norm": 0.004770365498499082
+  },
+  {
+   "solver": "lu",
+   "ranks": 16,
+   "mesh": [
+    200,
+    100
+   ],
+   "cells": 80000,
+   "dofs_flow_plus_heat": 401804,
+   "seconds_per_step": 6.833793552592397,
+   "per_solve": {
+    "filt_": {
+     "seconds": 0.24838115274906158,
+     "its": 1
+    },
+    "flow_": {
+     "seconds": 2.5863735526800156,
+     "its": 1
+    },
+    "heat_": {
+     "seconds": 0.28214804641902447,
+     "its": 1
+    },
+    "adjT_": {
+     "seconds": 0.4775919243693352,
+     "its": 1
+    },
+    "adjF_": {
+     "seconds": 2.6167642772197723,
+     "its": 1
+    },
+    "filtadj_": {
+     "seconds": 0.5729781277477741,
+     "its": 1
+    }
+   },
+   "J": 0.11162547135351825,
+   "grad_norm": 0.004770365492041933
+  },
+  {
+   "solver": "lu",
+   "ranks": 28,
+   "mesh": [
+    200,
+    100
+   ],
+   "cells": 80000,
+   "dofs_flow_plus_heat": 401804,
+   "seconds_per_step": 6.550395155325532,
+   "per_solve": {
+    "filt_": {
+     "seconds": 0.25023223645985126,
+     "its": 1
+    },
+    "flow_": {
+     "seconds": 2.451033255085349,
+     "its": 1
+    },
+    "heat_": {
+     "seconds": 0.2758925389498472,
+     "its": 1
+    },
+    "adjT_": {
+     "seconds": 0.4746033865958452,
+     "its": 1
+    },
+    "adjF_": {
+     "seconds": 2.477586256340146,
+     "its": 1
+    },
+    "filtadj_": {
+     "seconds": 0.5675352495163679,
+     "its": 1
+    }
+   },
+   "J": 0.11162547135351658,
+   "grad_norm": 0.0047703654920418165
+  },
+  {
+   "solver": "iterative",
+   "ranks": 16,
+   "mesh": [
+    400,
+    200
+   ],
+   "cells": 320000,
+   "dofs_flow_plus_heat": 1603604,
+   "seconds_per_step": 37.070624785497785,
+   "per_solve": {
+    "filt_": {
+     "seconds": 0.07343444786965847,
+     "its": 7
+    },
+    "flow_": {
+     "seconds": 19.123694667592645,
+     "its": 138
+    },
+    "heat_": {
+     "seconds": 0.22879274748265743,
+     "its": 17
+    },
+    "adjT_": {
+     "seconds": 0.3762654308229685,
+     "its": 17
+    },
+    "adjF_": {
+     "seconds": 16.748688029125333,
+     "its": 124
+    },
+    "filtadj_": {
+     "seconds": 0.4586375020444393,
+     "its": 7
+    }
+   },
+   "J": 0.11048745453196405,
+   "grad_norm": 0.002227815940494382
+  },
+  {
+   "solver": "iterative",
+   "ranks": 28,
+   "mesh": [
+    400,
+    200
+   ],
+   "cells": 320000,
+   "dofs_flow_plus_heat": 1603604,
+   "seconds_per_step": 20.385303180664778,
+   "per_solve": {
+    "filt_": {
+     "seconds": 0.05077326484024525,
+     "its": 8
+    },
+    "flow_": {
+     "seconds": 10.31062906049192,
+     "its": 139
+    },
+    "heat_": {
+     "seconds": 0.15333957970142365,
+     "its": 17
+    },
+    "adjT_": {
+     "seconds": 0.3266318030655384,
+     "its": 17
+    },
+    "adjF_": {
+     "seconds": 9.071344641968608,
+     "its": 124
+    },
+    "filtadj_": {
+     "seconds": 0.41087709926068783,
+     "its": 8
+    }
+   },
+   "J": 0.11048745451754646,
+   "grad_norm": 0.0022278159392383964
+  },
+  {
+   "solver": "lu",
+   "ranks": 16,
+   "mesh": [
+    400,
+    200
+   ],
+   "cells": 320000,
+   "dofs_flow_plus_heat": 1603604,
+   "seconds_per_step": 29.60904677398503,
+   "per_solve": {
+    "filt_": {
+     "seconds": 1.1108892615884542,
+     "its": 1
+    },
+    "flow_": {
+     "seconds": 12.165419962257147,
+     "its": 1
+    },
+    "heat_": {
+     "seconds": 1.2271335795521736,
+     "its": 1
+    },
+    "adjT_": {
+     "seconds": 1.3710020519793034,
+     "its": 1
+    },
+    "adjF_": {
+     "seconds": 12.164987759664655,
+     "its": 1
+    },
+    "filtadj_": {
+     "seconds": 1.5063911136239767,
+     "its": 1
+    }
+   },
+   "J": 0.11048745449206741,
+   "grad_norm": 0.0022278159384066434
+  },
+  {
+   "solver": "lu",
+   "ranks": 28,
+   "mesh": [
+    400,
+    200
+   ],
+   "cells": 320000,
+   "dofs_flow_plus_heat": 1603604,
+   "seconds_per_step": 28.04933036491275,
+   "per_solve": {
+    "filt_": {
+     "seconds": 1.1262772027403116,
+     "its": 1
+    },
+    "flow_": {
+     "seconds": 11.376125078648329,
+     "its": 1
+    },
+    "heat_": {
+     "seconds": 1.2100360821932554,
+     "its": 1
+    },
+    "adjT_": {
+     "seconds": 1.3493964783847332,
+     "its": 1
+    },
+    "adjF_": {
+     "seconds": 11.443868672475219,
+     "its": 1
+    },
+    "filtadj_": {
+     "seconds": 1.4681409485638142,
+     "its": 1
+    }
+   },
+   "J": 0.11048745449206866,
+   "grad_norm": 0.002227815938406637
+  }
+ ]
 }

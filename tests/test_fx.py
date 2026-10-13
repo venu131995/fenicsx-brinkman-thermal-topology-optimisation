@@ -98,3 +98,24 @@ def test_conservation_report_closes():
     assert abs(c["thermal_energy"]["closure_rel"]) < 1e-9
     assert c["local_residuals"]["momentum_mass_nodal_max_rel"] < 1e-9
     assert c["local_residuals"]["heat_nodal_max_rel"] < 1e-8
+
+
+@pytest.mark.parametrize("cls,kw", [
+    (DoublePipe, dict(nx=24, ny=16, beta=2.0)),
+    (ThermalPlate, dict(length=2.0, nx=40, ny=20, thermal=True, pe=1e3, p_in=3e3, beta=8.0, a_max=1e6)),
+])
+def test_iterative_solvers_match_direct(cls, kw):
+    # AMG / block-preconditioned MINRES must reproduce the MUMPS objective and gradient
+    rng = np.random.default_rng(5 + MPI.COMM_WORLD.rank)
+    out = []
+    for solver in ("lu", "iterative"):
+        prob = cls(Settings(solver=solver, **kw))
+        if not out:
+            x = rng.uniform(0.2, 0.8, prob.n_local)
+        prob.set_design(x)
+        out.append(prob.evaluate())
+    (J0, g0), (J1, g1) = out
+    comm = MPI.COMM_WORLD
+    gerr = np.sqrt(comm.allreduce(float((g1 - g0) @ (g1 - g0)))) / np.sqrt(comm.allreduce(float(g0 @ g0)))
+    assert abs(J1 - J0) / abs(J0) < 1e-8
+    assert gerr < 1e-6

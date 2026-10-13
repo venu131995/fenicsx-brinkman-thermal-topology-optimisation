@@ -14,6 +14,7 @@ of the Helmholtz filter. No hand-coded derivatives.
 """
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass, field
 
 import basix.ufl
@@ -27,35 +28,76 @@ from petsc4py import PETSc
 QDEG = 6                                    # fixed quadrature: identical integration in solves and residual checks
 dxq = ufl.dx(metadata={"quadrature_degree": QDEG})
 LU = {"ksp_type": "preonly", "pc_type": "lu", "pc_factor_mat_solver_type": "mumps"}
+# Iterative alternatives (Settings.solver = "iterative"): scalable in parallel, no factorisation.
+AMG = {"pc_type": "hypre", "pc_hypre_type": "boomeramg"}
+ITERATIVE = {
+    "cg": {"ksp_type": "cg", "ksp_rtol": 1e-12, "ksp_atol": 1e-50, **AMG},                     # Helmholtz filter (SPD)
+    "gmres": {"ksp_type": "gmres", "ksp_gmres_restart": 200, "ksp_rtol": 1e-12, "ksp_atol": 1e-50, **AMG},  # heat
+    # Stokes-Brinkman: FGMRES with an upper block-triangular Schur preconditioner. The Schur complement is
+    # approximated by -B diag(A)^-1 B^T ("selfp"), which contains alpha and so adapts to solid (Darcy-like) and
+    # fluid (Stokes-like) regions; AMG on both blocks. A plain weighted pressure mass matrix needed > 1,000 iterations.
+    "stokes": {"ksp_type": "fgmres", "ksp_gmres_restart": 300, "ksp_rtol": 1e-12, "ksp_atol": 1e-50,
+               "pc_type": "fieldsplit", "pc_fieldsplit_type": "schur", "pc_fieldsplit_schur_fact_type": "upper",
+               "pc_fieldsplit_schur_precondition": "selfp",
+               "fieldsplit_u_ksp_type": "preonly", "fieldsplit_u_pc_type": "hypre",
+               "fieldsplit_u_pc_hypre_type": "boomeramg",
+               "fieldsplit_p_ksp_type": "preonly", "fieldsplit_p_pc_type": "hypre",
+               "fieldsplit_p_pc_hypre_type": "boomeramg"},
+}
+STATS: dict = {}                            # prefix -> {"seconds": accumulated time, "its": last iteration count}
 
 
-def solve_linear(a, L, bcs, u, prefix):
+def solve_linear(a, L, bcs, u, prefix, opts=None, a_pc=None, fields=None, nullspace=None):
+    """Solve a(u, v) = L(v). Default: MUMPS LU with iterative refinement. With opts/a_pc/fields: a Krylov
+    method, an optional separate preconditioner form and named index sets for a fieldsplit preconditioner."""
+    t0 = time.perf_counter()
+    opts = opts or LU
     A = fpetsc.assemble_matrix(fem.form(a), bcs=bcs)
     A.assemble()
+    P = None
+    if a_pc is not None:
+        P = fpetsc.assemble_matrix(fem.form(a_pc), bcs=bcs)
+        P.assemble()
     b = fpetsc.assemble_vector(fem.form(L))
     fpetsc.apply_lifting(b, [fem.form(a)], bcs=[bcs])
     b.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
     for bc in bcs:
         bc.set(b.array_w)
+    if nullspace is not None:
+        A.setNullSpace(nullspace)
+        nullspace.remove(b)
     ksp = PETSc.KSP().create(u.function_space.mesh.comm)
     ksp.setOptionsPrefix(prefix)
-    opts = PETSc.Options()
-    for k, v in LU.items():
-        opts[prefix + k] = v
-    ksp.setOperators(A)
+    o = PETSc.Options()
+    for k, v in opts.items():
+        o[prefix + k] = v
+    ksp.setOperators(A, P if P is not None else A)
+    if fields:
+        ksp.getPC().setType("fieldsplit")
+        ksp.getPC().setFieldSplitIS(*fields)
     ksp.setFromOptions()
     x = u.x.petsc_vec
     ksp.solve(b, x)
-    # iterative refinement with the same factorisation: recovers digits lost to ill-conditioning
-    # (convection-dominated heat equation), so discrete residuals reach round-off
-    r, dx = b.duplicate(), b.duplicate()
-    for _ in range(3):
-        A.mult(x, r); r.aypx(-1.0, b)
-        if r.norm() <= 1e-14 * max(b.norm(), 1e-300):
-            break
-        ksp.solve(r, dx); x.axpy(1.0, dx)
+    if ksp.getConvergedReason() <= 0:
+        raise RuntimeError(f"{prefix}: Krylov solver did not converge (reason {ksp.getConvergedReason()})")
+    its = ksp.getIterationNumber()
+    if opts is LU:
+        # iterative refinement with the same factorisation: recovers digits lost to ill-conditioning
+        # (convection-dominated heat equation), so discrete residuals reach round-off
+        r, dx = b.duplicate(), b.duplicate()
+        for _ in range(3):
+            A.mult(x, r); r.aypx(-1.0, b)
+            if r.norm() <= 1e-14 * max(b.norm(), 1e-300):
+                break
+            ksp.solve(r, dx); x.axpy(1.0, dx)
+        r.destroy(); dx.destroy()
     u.x.scatter_forward()
-    r.destroy(); dx.destroy(); ksp.destroy(); A.destroy(); b.destroy()
+    ksp.destroy(); A.destroy(); b.destroy()
+    if P is not None:
+        P.destroy()
+    s = STATS.setdefault(prefix, {"seconds": 0.0, "its": 0})
+    s["seconds"] += time.perf_counter() - t0
+    s["its"] = its
 
 
 def assemble_gradient(form, V0) -> np.ndarray:
@@ -86,6 +128,7 @@ class Settings:
     k_fluid: float = 0.05
     p_in: float = 1.0e3
     pnorm: float = 8.0
+    solver: str = "lu"                      # "lu" (MUMPS) or "iterative" (AMG / block-preconditioned Krylov)
     extra: dict = field(default_factory=dict)
 
 
@@ -113,6 +156,29 @@ class Problem:
         self.area = comm.allreduce(fem.assemble_scalar(fem.form(fem.Constant(self.msh, 1.0) * ufl.dx(domain=self.msh))), op=MPI.SUM)
         self.n_local = self.V0.dofmap.index_map.size_local
 
+    # -------------------------------------------------------------- linear solves
+    def solve(self, a, L, bcs, u, prefix, kind):
+        """kind: "cg" (filter), "gmres" (heat) or "stokes" (flow); ignored with the default LU solver."""
+        if self.s.solver == "lu":
+            return solve_linear(a, L, bcs, u, prefix)
+        if kind != "stokes":
+            return solve_linear(a, L, bcs, u, prefix, ITERATIVE[kind])
+        return solve_linear(a, L, bcs, u, prefix, ITERATIVE["stokes"], fields=self.flow_fields(),
+                            nullspace=self.pressure_nullspace())
+
+    def flow_fields(self):
+        if not hasattr(self, "_fields"):
+            im = self.W.dofmap.index_map
+            self._fields = []
+            for i, name in enumerate("up"):
+                dofs = np.asarray(self.W.sub(i).collapse()[1], dtype=np.int64)
+                owned = np.sort(dofs[dofs < im.size_local]) + im.local_range[0]
+                self._fields.append((name, PETSc.IS().createGeneral(owned.astype(PETSc.IntType), comm=self.comm)))
+        return self._fields
+
+    def pressure_nullspace(self):
+        return None
+
     # -------------------------------------------------------------- design pipeline
     def rho(self):
         b, e = self.beta, self.s.eta
@@ -129,22 +195,13 @@ class Problem:
 
     def apply_filter(self):
         a, L = self.filter_forms(self.x)
-        solve_linear(a, L, [], self.xf, "filt_")
+        self.solve(a, L, [], self.xf, "filt_", "cg")
 
     def filter_adjoint(self, dJ_dxf_form) -> np.ndarray:
         """Chain rule through the (symmetric) Helmholtz filter: returns dJ/dx on owned DG0 dofs."""
-        g = fpetsc.assemble_vector(fem.form(dJ_dxf_form))
-        g.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
-        u, v = ufl.TrialFunction(self.V1), ufl.TestFunction(self.V1)
-        A = fpetsc.assemble_matrix(fem.form(self.s.r_filter ** 2 * ufl.inner(ufl.grad(u), ufl.grad(v)) * ufl.dx
-                                             + u * v * ufl.dx))
-        A.assemble()
+        a, _ = self.filter_forms(self.xf)
         lam = fem.Function(self.V1)
-        ksp = PETSc.KSP().create(self.comm)
-        ksp.setOperators(A); ksp.setType("preonly"); ksp.getPC().setType("lu")
-        ksp.getPC().setFactorSolverType("mumps")
-        ksp.solve(g, lam.x.petsc_vec); lam.x.scatter_forward()
-        ksp.destroy(); A.destroy(); g.destroy()
+        self.solve(a, dJ_dxf_form, [], lam, "filtadj_", "cg")
         return assemble_gradient(lam * ufl.TestFunction(self.V0) * ufl.dx, self.V0)
 
     def volume(self):
@@ -191,6 +248,17 @@ class DoublePipe(Problem):
         self.bcs = [fem.dirichletbc(g, dofs, self.W.sub(0))]
         self.u_bc = g
 
+    def pressure_nullspace(self):
+        """Velocity is prescribed on the whole boundary, so the pressure is fixed only up to a constant."""
+        if not hasattr(self, "_ns"):
+            _, pdofs = self.W.sub(1).collapse()
+            z = fem.Function(self.W)
+            z.x.array[pdofs] = 1.0
+            vec = z.x.petsc_vec.copy()
+            vec.normalize()
+            self._ns = PETSc.NullSpace().create(vectors=[vec], comm=self.comm)
+        return self._ns
+
     def flow_forms(self, w, vq):
         u, p = ufl.split(w)
         v, q = ufl.split(vq)
@@ -204,7 +272,7 @@ class DoublePipe(Problem):
         a = (self.alpha() * ufl.inner(u, v) + mu * ufl.inner(ufl.grad(u), ufl.grad(v))
              - p * ufl.div(v) - q * ufl.div(u)) * ufl.dx
         zero = fem.Constant(self.msh, PETSc.ScalarType((0.0, 0.0)))
-        solve_linear(a, ufl.inner(zero, v) * ufl.dx, self.bcs, self.w, "flow_")
+        self.solve(a, ufl.inner(zero, v) * ufl.dx, self.bcs, self.w, "flow_", "stokes")
         # pressure is defined up to a constant (velocity BCs everywhere) -- MUMPS handles the null space;
         # fix the mean to zero for clean output
         _, pdofs = self.W.sub(1).collapse()
@@ -227,7 +295,7 @@ class DoublePipe(Problem):
         a_adj = ufl.adjoint(ufl.derivative(R, self.w, dw))
         L_adj = -ufl.derivative(J_form, self.w, vq)
         lam = fem.Function(self.W)
-        solve_linear(a_adj, L_adj, self._homogeneous_bcs(), lam, "adj_")
+        self.solve(a_adj, L_adj, self._homogeneous_bcs(), lam, "adj_", "stokes")
         # total derivative w.r.t. the filtered field:  dJ/dxf + lam^T dR/dxf
         dxf = ufl.TestFunction(self.V1)
         dJ = ufl.derivative(J_form, self.xf, dxf) + ufl.derivative(ufl.replace(R, {vq: lam}), self.xf, dxf)
@@ -306,12 +374,12 @@ class ThermalPlate(Problem):
     def evaluate(self, gradient: bool = True):
         vq, dw = ufl.TestFunction(self.W), ufl.TrialFunction(self.W)
         RF = self.flow_residual(self.w, vq)
-        solve_linear(ufl.lhs(ufl.replace(RF, {self.w: dw})), ufl.rhs(ufl.replace(RF, {self.w: dw})),
-                     self.bcs, self.w, "flow_")
+        self.solve(ufl.lhs(ufl.replace(RF, {self.w: dw})), ufl.rhs(ufl.replace(RF, {self.w: dw})),
+                   self.bcs, self.w, "flow_", "stokes")
         sT, dT = ufl.TestFunction(self.V1), ufl.TrialFunction(self.V1)
         RT = self.heat_residual(self.w, self.T, sT)
         RT_lin = ufl.replace(RT, {self.T: dT})
-        solve_linear(ufl.lhs(RT_lin), ufl.rhs(RT_lin), self.bcs_T, self.T, "heat_")
+        self.solve(ufl.lhs(RT_lin), ufl.rhs(RT_lin), self.bcs_T, self.T, "heat_", "gmres")
         Jp = self.comm.allreduce(fem.assemble_scalar(fem.form(self.objective_form(self.T))), op=MPI.SUM)
         J = (Jp / self.area) ** (1.0 / self.s.pnorm)
         if not gradient:
@@ -321,12 +389,12 @@ class ThermalPlate(Problem):
         # heat adjoint
         lamT = fem.Function(self.V1)
         a_T = ufl.adjoint(ufl.derivative(RT, self.T, dT))
-        solve_linear(a_T, -ufl.derivative(Jform, self.T, sT), self.bcs_T, lamT, "adjT_")
+        self.solve(a_T, -ufl.derivative(Jform, self.T, sT), self.bcs_T, lamT, "adjT_", "gmres")
         # flow adjoint: forced by the heat equation's dependence on velocity
         lamF = fem.Function(self.W)
         a_F = ufl.adjoint(ufl.derivative(RF, self.w, dw))
         L_F = -ufl.derivative(ufl.replace(RT, {sT: lamT}), self.w, vq)
-        solve_linear(a_F, L_F, self.bcs, lamF, "adjF_")
+        self.solve(a_F, L_F, self.bcs, lamF, "adjF_", "stokes")
         dxf = ufl.TestFunction(self.V1)
         dJ = (ufl.derivative(Jform, self.xf, dxf) + ufl.derivative(ufl.replace(RT, {sT: lamT}), self.xf, dxf)
               + ufl.derivative(ufl.replace(RF, {vq: lamF}), self.xf, dxf))

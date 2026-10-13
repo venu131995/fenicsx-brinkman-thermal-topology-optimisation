@@ -1,8 +1,9 @@
 # FEniCSx Brinkman-Flow & Thermal Topology Optimisation (FEM · symbolic adjoint · PETSc · MPI)
 
 Density-based topology optimisation of fluid and thermal-fluid devices with **finite elements in FEniCSx
-(DOLFINx 0.11)**. Every linear system is solved with **PETSc** (MUMPS), and the whole optimisation (state
-solves, adjoints, PDE filter and MMA) runs **in parallel with MPI**. Gradients come from the **discrete adjoint
+(DOLFINx 0.11)**. Every linear system is solved with **PETSc**, either directly (MUMPS) or with
+**scalable iterative solvers** (algebraic multigrid and a Schur-complement block preconditioner), and the whole
+optimisation (state solves, adjoints, PDE filter and MMA) runs **in parallel with MPI**: 13× faster on 28 cores. Gradients come from the **discrete adjoint
 generated symbolically from the UFL weak forms**, so no derivative is coded by hand.
 
 This is the finite-element successor to the
@@ -116,22 +117,39 @@ solutions and the Taylor gradient tests below.
 **Gradients:** Taylor tests show second-order remainder convergence (rate > 1.8) for both problems, in serial
 and on 4 MPI processes.
 
-### 4. MPI scaling
+### 4. MPI scaling: direct vs. iterative solvers
 
-One full optimisation step (flow solve, heat solve, two adjoints and the filter) on an 80,000-cell mesh, measured
-fairly with one thread per process and MUMPS parallel ordering (`scripts/scaling.py`, `results/scaling.json`):
+`Settings(solver="lu")` (default) factorises every system with MUMPS. `Settings(solver="iterative")` uses solvers
+that need no factorisation:
 
-| MPI processes | 1 | 2 | 4 |
+| System | Krylov method | Preconditioner | Iterations |
 |---|---|---|---|
-| Seconds per step | 9.4 | 7.5 | 7.1 |
-| Speed-up | 1.00 | 1.25 | 1.32 |
+| Helmholtz filter and its adjoint (SPD) | CG | BoomerAMG (hypre) | 6–7 |
+| Heat and heat adjoint (SUPG, Pe = 10³) | GMRES | BoomerAMG | 14–21 |
+| Stokes–Brinkman and flow adjoint | FGMRES | fieldsplit Schur (upper), S ≈ −B diag(A)⁻¹Bᵀ ("selfp"), BoomerAMG on both blocks | 41 / 76 / 138 |
 
-The code is genuinely parallel: the mesh, assembly, solves and MMA are distributed, and results are identical
-across process counts. Speed-up on a laptop is modest because every solve uses the sparse **direct** solver
-(MUMPS), whose factorisation is limited by memory bandwidth on 4 performance cores. A naive test that let one process
-use multi-threaded BLAS even showed a slow-down. The scalable path is iterative solvers: algebraic multigrid
-(hypre) for the heat equation and a PETSc fieldsplit/Schur-complement preconditioner for Stokes–Brinkman. That is
-the change needed before large 3-D runs on a cluster.
+Both solvers give the same objective to 9 digits and the same gradient (tested). Strong scaling of one full
+optimisation step (flow, heat, two adjoints, filter and filter adjoint) on the six-channel design
+(α_max = 10⁶, sharp solid/fluid contrast), one thread per process, 2 × 14-core Xeon E5-2690 v4 server
+(`scripts/scaling.py`, `results/scaling.json`). Seconds per step:
+
+| MPI processes | 1 | 2 | 4 | 8 | 16 | 28 | speed-up 1 → 28 |
+|---|---|---|---|---|---|---|---|
+| 80,000 cells (0.4 M unknowns), MUMPS | 13.6 | 11.0 | 8.1 | 7.3 | 6.8 | 6.6 | 2.1× |
+| 80,000 cells, iterative | 25.3 | 13.6 | 7.5 | 5.2 | 3.9 | **2.5** | **10×** |
+| 320,000 cells (1.6 M unknowns), MUMPS | 63.6 | 48.9 | 38.0 | 32.2 | 29.6 | 28.1 | 2.3× |
+| 320,000 cells, iterative | 264 | 137 | 73.9 | 49.0 | 37.1 | **20.4** | **13×** |
+
+- **MUMPS stops scaling after about 4 processes.** The factorisation is limited by memory bandwidth and by its
+  sequential parts.
+- **The iterative solvers keep scaling** and overtake MUMPS from 4 processes on: 2.6× faster at 28 processes on the
+  smaller mesh and 1.4× on the larger one. The larger mesh scales better (more work per process).
+- **Open issue: flow iterations grow with refinement** (41 → 76 → 138 for 20k → 80k → 320k cells), so on one
+  process the iterative flow solve is 4× slower than MUMPS on the large mesh. The "selfp" Schur approximation uses
+  the diagonal of the P2 velocity block, which is not spectrally equivalent in the Stokes (fluid) regions. Tested
+  and rejected: a weighted pressure mass matrix (> 1,000 iterations), a mass + Darcy-Laplacian approximation and a
+  lumped velocity inverse (both slower). A Brinkman-robust Schur preconditioner (sum of a scaled pressure mass
+  inverse and a Darcy-Laplacian inverse, applied as a shell) is the next step.
 
 ## Pitfalls found and fixed (worth knowing for real use)
 
@@ -157,13 +175,14 @@ the change needed before large 3-D runs on a cluster.
   and the same code extends to 3-D meshes.
 - The thermal study uses α_max = 10⁶, where the straight-pipe check shows dissipation 4–5% below exact. Designs
   are compared within the same model, but absolute values carry that error; 10⁸ is the accurate setting.
-- MUMPS direct solves limit scaling. Large 3-D problems need iterative block preconditioners (PETSc fieldsplit).
+- The iterative flow solver's iteration count grows with mesh refinement (see MPI scaling). Large 3-D runs need a
+  mesh-robust Brinkman Schur preconditioner.
 
 ## Run
 
 ```bash
 micromamba create -n fx -c conda-forge python=3.12 "fenics-dolfinx=0.11" "mpi=*=openmpi" matplotlib scipy pytest imageio-ffmpeg
-python -m pytest -q tests                          # 7 tests (also: mpirun -n 4 python -m pytest tests)
+python -m pytest -q tests                          # 9 tests (also: mpirun -n 4 python -m pytest tests)
 python scripts/verify_mms.py                       # manufactured-solution rates, ~1 min
 mpirun -n 4 python scripts/run_double_pipe.py 1.0  # benchmark, short box, ~11 min
 mpirun -n 4 python scripts/run_double_pipe.py 1.5  # long box, ~24 min (separate job)
@@ -172,11 +191,11 @@ mpirun -n 4 python scripts/straight_pipe_accuracy.py  # straight pipes vs exact,
 python scripts/verify_nusselt.py                   # heated plates, Nusselt vs 8.235, ~20 s
 python scripts/plot_benchmark.py                   # fig0_benchmark.png
 mpirun -n 4 python scripts/run_thermal.py          # thermal design + fair baselines, ~25 min
-mpirun -n N python scripts/scaling.py 200          # strong scaling (see script header for fair settings)
+mpirun -n N python scripts/scaling.py 200 iterative  # strong scaling, lu or iterative (see script header)
 python scripts/make_animation.py                   # movie
 ```
 
 `src/fxtopopt/`:
-- `model.py`: weak forms, symbolic adjoints, PDE filter, conservation checks;
+- `model.py`: weak forms, symbolic adjoints, PDE filter, direct and iterative PETSc solvers, conservation checks;
 - `mma.py`: parallel MMA;
 - `optimise.py`: loop with continuation.
